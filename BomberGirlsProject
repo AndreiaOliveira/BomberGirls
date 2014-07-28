@@ -1,0 +1,1848 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
+#include <SDL/SDL_ttf.h>
+
+/* Definicoes, para facilitar o uso da funcao para desenhar o mapa */
+#define INDESTRUTIVEL 0
+#define CHAO   2
+#define DESTRUTIVEL  3
+#define FUNDO 10
+#define PORTAL 4
+#define SAIDA 5
+
+/* Desfinicoes da configuracao do Video */
+#define LARGURA 850 /* Numero total de colunas*largura_da_parede */
+#define ALTURA  700 /* Numero total de linhas*altura_da_parede */
+#define BPP       0 /* A Flag SDL_ANYFORMAT se encaregara da resolucao */
+
+
+SDL_Surface * tela, * tela_menu, * tijolo_vazio, * tijolo_indestrutivel, * tijolo_destrutivel, * player, *playerMorto, * final, 
+            *imagemBomba, *explosaoBomba, *explosaoUp, *explosaoRight, *explosaoDown, *explosaoLeft, *imagemInimigo1, 
+            *imagemInimigo2, *imagemInimigo3, *imagemFundo, *inimigomorto, *logo, *bombergirl, *bt_iniciar, *bt_recorde,
+            *bt_manual, *bt_creditos, *bt_iniciardestaque, *bt_recordedestaque, *bt_manualdestaque, *bt_creditosdestaque, 
+            *tela_manual, *tela_recordes, *tela_creditos, *fundo_menu, *titulo_recordes, *trofeu, *classificacao, *bt_menu, 
+            *titulo_manual, *bt_jogar, *comandos, *titulo_creditos, *cr, *titulo_nr, *mensagem, *bt_ok, *entrada, *rip, *mensagem2, 
+            *mensagem3, *fundo_pont, *titulo_fim, *bt_menu2, *bt_nj, *bombergirl2, *portal, *bt_menudestaque, *bt_jogardestaque,
+            *numerosPontos, *bt_okdestaque, *bt_njdestaque, *bt_menu2destaque, *cronometro;
+
+int coluna_atual = 1, linha_atual = 2, fim = 0, bombaExplosao = 0, movimento = 0, colunaInimigo1_atual = 15, linhaInimigo1_atual = 12,
+    colunaInimigo2_atual = 1, linhaInimigo2_atual = 12, colunaInimigo3_atual = 15, linhaInimigo3_atual = 2, vidas = 3, vivo = 0,
+    tempo_morte = 0, morto = 0, tempoDeMovimentoInimigo = 0, sairMenu = 0, botaoMenu, tiniciar, trecordes, tcred, tmanual, 
+    sairRecorde = 0, sairManual = 0, sairCreditos = 0, aumentaPontos = 0, pontos = 0, encerrar = 0, sairNRecorde = 0, sairFimWin = 0,
+    sairFimLoose = 0, pontuacao[1], sairJogo = 0;
+			
+TTF_Font *fonte;
+SDL_Color corTexto = { 255, 255, 255 };
+
+SDL_Rect cordenada_cronometro;
+SDL_Rect destinoMenu;
+SDL_Rect destinoPontos = {0, 0, 100, 100};
+
+char mens_cronometro[50];
+int segundosdejogo = 0;
+int segundosrestantes = 0;
+
+//Rects do Menu Principal
+SDL_Rect destinoLogo = {160, 10, 0, 0};
+SDL_Rect destinoBgirl = {135, 260, 0, 0};
+SDL_Rect destinoBtIniciar = {525, 300, 0, 0};
+SDL_Rect destinoBtRecorde = {525, 374, 0, 0};
+SDL_Rect destinoBtManual = {525, 448, 0, 0};
+SDL_Rect destinoBtCreditos = {525, 522, 0, 0};
+SDL_Rect destinoBtIniciarD = {525, 300, 0, 0};
+SDL_Rect destinoBtRecordeD = {525, 374, 0, 0};
+SDL_Rect destinoBtManualD = {525, 448, 0, 0};
+SDL_Rect destinoBtCreditosD = {525, 522, 0, 0};
+//Rects do Menu Recordes
+SDL_Rect destinoTtRecordes = {239, 60, 0, 0};
+SDL_Rect destinoTrofeuR = {33, 200, 0, 0};
+SDL_Rect destinoBtMenuR = {652, 570, 0, 0};
+SDL_Rect destinoClassific = {450, 230, 0, 0};
+//Rects do Menu Manual
+SDL_Rect destinoTtManual = {273, 60, 0, 0};
+SDL_Rect destinoComandos = {56, 200, 0, 0};
+SDL_Rect destinoBtMenuM = {690, 610, 0, 0};
+SDL_Rect destinoBtJogar = {540, 610, 0, 0};
+//Rects do Menu Creditos
+SDL_Rect destinoTtCreditos = {265, 35, 0, 0};
+SDL_Rect destinoCred = {100, 180, 0, 0};
+SDL_Rect destinoBtMenuC = {690, 610, 0, 0};
+//Rects da Tela Novo Recorde
+SDL_Rect destinoTtNR = {141, 60, 0, 0};
+SDL_Rect destinoTrofeuNR = {33, 200, 0, 0};
+SDL_Rect destinoMensagem = {445, 300, 0, 0};
+SDL_Rect destinoEntrada = {445, 398, 0, 0};
+SDL_Rect destinoBtOk = {717, 398, 0, 0};
+//Rects das Telas Fim de Jogo
+SDL_Rect destinoTtFim = {198, 60, 0, 0};
+SDL_Rect destinoFundoPont = {532, 337, 0, 0};
+SDL_Rect destinoNJ = {532, 444, 0, 0};
+SDL_Rect destinoMenu2 = {532, 524, 0, 0};
+
+SDL_Rect destinoBGirlFJ = {125, 225, 0, 0};
+SDL_Rect destinoMensagem2 = {474, 240, 0, 0};
+
+SDL_Rect destinoRip = {0, 100, 0, 0};
+SDL_Rect destinoMensagem3 = {508, 220, 0, 0};
+
+
+typedef struct bomba
+{
+	SDL_Rect quad;
+	SDL_Rect direita;
+	SDL_Rect esquerda;
+	SDL_Rect cima;
+	SDL_Rect baixo;
+	SDL_Rect centro;
+	int ativa;
+	int time;
+	int centroAtiva;
+	int cimaAtiva;
+	int baixoAtiva;
+	int esquerdaAtiva;
+	int direitaAtiva;
+	int i;
+	int j;
+}Bomba;
+
+typedef struct inimigo
+{
+        SDL_Rect quad;
+        int ativo;
+        int tempo_movimento;
+}Inimigo;
+
+typedef struct
+{
+        int coluna;
+        int linha;
+} posicaoInimigo;
+   
+posicaoInimigo posicoes[3];
+
+char hud[256]; // informacoes passadas ao usuario
+
+/* O Mapa */
+int mapa[14][17] = {10, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 2, 2, 3, 2, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 0,
+                    0, 2, 0, 3, 0, 2, 0, 2, 0, 2, 0, 2, 0, 3, 0, 2, 0,
+                    0, 3, 3, 3, 2, 2, 2, 2, 2, 3, 2, 2, 3, 3, 3, 2, 0,
+                    0, 2, 0, 3, 0, 3, 0, 2, 0, 3, 0, 2, 0, 2, 0, 2, 0,
+                    0, 3, 3, 3, 2, 3, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 0,
+                    0, 2, 0, 2, 0, 2, 0, 3, 0, 3, 0, 2, 0, 2, 0, 2, 0,
+                    0, 2, 2, 2, 2, 2, 2, 3, 3, 3, 2, 2, 2, 2, 2, 2, 0,
+                    0, 2, 0, 2, 0, 2, 0, 3, 0, 2, 0, 2, 0, 2, 0, 2, 0,
+                    0, 3, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 3, 3, 2, 0,
+                    0, 3, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 3, 0, 2, 0,
+                    0, 2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 4, 3, 2, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+                    
+void menu_principal(SDL_Event evento);
+void menu_recordes(SDL_Event evento);
+void menu_manual(SDL_Event evento);
+void menu_creditos(SDL_Event evento);
+void menu_novorecorde(SDL_Event evento);
+void menu_fimWin(SDL_Event evento);
+void menu_fimLoose(SDL_Event evento);
+void controla_fps (int tempo_inicial);
+int carrega_imagens();
+void explosao(int mapa[13][17],Bomba *bomba);
+void move_inimigo(int movimento);
+void move_jogador(int movimento);
+void desenha_mapa();
+
+/*
+int colisao(SDL_Rect a, SDL_Rect b)
+{
+    if(b.x + b.w < a.x) //- b.direita < a.esquerda
+    return 0;
+    if(b.x > a.x + a.w) //- b.esquerda > a.direita
+    return 0;
+    if(b.y + b.h < a.y) //- b.baixo < a.cima
+    return 0;
+    if(b.y > a.y + a.h) //- b.cima > a.baixo
+    return 0;
+    
+    return 1; //- retângulos se colidem
+}*/
+
+
+//AQUI
+//==========================FUNCOES==========================
+// Funcao que controla o fps
+void controla_fps ( int tempo_inicial )
+{
+     int fps = 1000/60; // converte 60 FPS para milissegundos
+     int tempo_agora = SDL_GetTicks() - tempo_inicial;
+     
+     if(tempo_agora < fps)
+     SDL_Delay(fps - tempo_agora);
+}
+
+// Funcao de inicializacao
+int carrega_imagens()
+{
+    fonte = TTF_OpenFont("pixel.ttf",40);
+    if(fonte == NULL)
+    {
+    	printf("Não carregou a fonte.");
+    	return 0;
+    }
+    
+    imagemInimigo1 = IMG_Load("inimigo1.png");
+    imagemInimigo2 = IMG_Load("inimigo2.png");
+    imagemInimigo3 = IMG_Load("inimigo3.png");
+    if(imagemInimigo1 == NULL || imagemInimigo2 == NULL || imagemInimigo3 == NULL)
+    {
+        printf("Nao carregou inimigo.");
+        return 0;
+    }
+    inimigomorto = IMG_Load("inimigomorto.png");
+    if(inimigomorto == NULL)
+    {
+        printf("Nao carregou inimigo morto.");
+        return 0;
+    }
+    imagemBomba = IMG_Load("bomba1.png");
+    if(imagemBomba == NULL)
+    {
+        printf("Nao carregou bomba.");
+        return 0;
+    }
+	player = IMG_Load("player1.png");
+	if(player == NULL)
+    {
+        printf("Nao carregou player.");
+        return 0;
+    }
+    playerMorto = IMG_Load("playermorto2.png");
+	if(playerMorto == NULL)
+    {
+        printf("Nao carregou playermorto.");
+        return 0;
+    }
+	tijolo_vazio = IMG_Load("vazio.png");
+    if(tijolo_vazio == NULL)
+    {
+        printf("Nao carregou chao.");
+        return 0;
+    }
+	tijolo_indestrutivel = IMG_Load("indestrutivel.png");
+    if(tijolo_indestrutivel == NULL)
+    {
+        printf("Nao carregou tijolo_indestrutivel.");
+        return 0;
+    }
+	tijolo_destrutivel = IMG_Load("destrutivel1.png");
+	if(tijolo_destrutivel == NULL)
+	{
+		printf("Nao carregou tijolo_destrutivel.");
+        return 0;
+	}
+	portal = IMG_Load("portal.png");
+	if(portal == NULL)
+	{
+		printf("Nao carregou portal.");
+        return 0;
+	}
+	explosaoBomba = IMG_Load("explosao1.png");
+	if(explosaoBomba == NULL)
+	{
+		printf("Nao carregou explosao.");
+        return 0;
+	}
+	imagemFundo = IMG_Load("fundo.png");
+	if(explosaoBomba == NULL)
+	{
+		printf("Nao carregou fundo.");
+        return 0;
+	}
+	logo = IMG_Load("logo.png");
+	if(logo == NULL)
+	{
+		printf("Nao carregou logo.");
+        return 0;
+	}
+	bt_iniciar = IMG_Load("iniciar.png");
+	if(bt_iniciar == NULL)
+	{
+		printf("Nao carregou botao iniciar.");
+        return 0;
+	}
+	bt_recorde = IMG_Load("recordes.png");
+	if(bt_recorde == NULL)
+	{
+		printf("Nao carregou botao recorde.");
+        return 0;
+	}
+	bt_manual= IMG_Load("manual.png");
+	if(bt_manual == NULL)
+	{
+		printf("Nao carregou botao manual.");
+        return 0;
+	}
+	bt_creditos = IMG_Load("creditos.png");
+	if(bt_creditos == NULL)
+	{
+		printf("Nao carregou botao creditos.");
+        return 0;
+	}
+	fundo_menu = IMG_Load("fundo2.png");
+	if(fundo_menu == NULL)
+	{
+		printf("Nao carregou fundo.");
+        return 0;
+	}
+	bombergirl = IMG_Load("bombergirl2.png");
+	if(bombergirl == NULL)
+	{
+		printf("Nao carregou bombergirl.");
+        return 0;
+	}
+	bombergirl2 = IMG_Load("bombergirl2.png");
+	if(bombergirl2 == NULL)
+	{
+		printf("Nao carregou bombergirl.");
+        return 0;
+	}
+	titulo_recordes = IMG_Load("titulo_recordes.png");
+	if(titulo_recordes == NULL)
+	{
+		printf("Nao carregou titulo recordes.");
+        return 0;
+	}
+	trofeu = IMG_Load("trofeu.png");
+	if(trofeu == NULL)
+	{
+		printf("Nao carregou trofeu.");
+        return 0;
+	}
+	classificacao = IMG_Load("classificacao.png");
+	if(classificacao == NULL)
+	{
+		printf("Nao carregou classificacao.");
+        return 0;
+	}
+	bt_menu = IMG_Load("menu.png");
+	if(bt_menu == NULL)
+	{
+		printf("Nao carregou menu.");
+        return 0;
+	}
+	titulo_manual = IMG_Load("titulo_manual.png");
+	if(titulo_manual == NULL)
+	{
+		printf("Nao carregou titulo manual.");
+        return 0;
+	}
+	bt_jogar = IMG_Load("jogar.png");
+	if(bt_jogar == NULL)
+	{
+		printf("Nao carregou jogar.");
+        return 0;
+	}
+	comandos = IMG_Load("comandos.png");
+	if(comandos == NULL)
+	{
+		printf("Nao carregou comandos.");
+        return 0;
+	}
+	titulo_creditos = IMG_Load("titulo_creditos.png");
+	if(titulo_creditos == NULL)
+	{
+		printf("Nao carregou titulo creditos.");
+        return 0;
+	}
+	cr = IMG_Load("cr.png");
+	if(cr == NULL)
+	{
+		printf("Nao carregou creditos.");
+        return 0;
+	}
+	titulo_nr = IMG_Load("titulo_nr.png");
+	if(titulo_nr == NULL)
+	{
+		printf("Nao carregou titulo novo recorde.");
+        return 0;
+	}
+	mensagem = IMG_Load("mensagem.png");
+	if(mensagem == NULL)
+	{
+		printf("Nao carregou mensagem.");
+        return 0;
+	}
+	bt_ok = IMG_Load("ok.png");
+	if(bt_ok == NULL)
+	{
+		printf("Nao carregou botao ok.");
+        return 0;
+	}
+	entrada = IMG_Load("entrada.png");
+	if(entrada == NULL)
+	{
+		printf("Nao carregou entrada.");
+        return 0;
+	}
+	rip = IMG_Load("rip.png");
+	if(rip == NULL)
+	{
+		printf("Nao carregou rip.");
+        return 0;
+	}
+	mensagem2 = IMG_Load("mensagem2.png");
+	if(mensagem2 == NULL)
+	{
+		printf("Nao carregou mensagem2.");
+        return 0;
+	}
+	mensagem3 = IMG_Load("mensagem3.png");
+	if(mensagem3 == NULL)
+	{
+		printf("Nao carregou mensagem3.");
+        return 0;
+	}
+	fundo_pont = IMG_Load("fundo_pont.png");
+	if(fundo_pont == NULL)
+	{
+		printf("Nao carregou fundo_pont.");
+        return 0;
+	}
+	titulo_fim = IMG_Load("titulo_fim.png");
+	if(titulo_fim == NULL)
+	{
+		printf("Nao carregou titulo_fim.");
+        return 0;
+	}
+	bt_menu2 = IMG_Load("menu2.png");
+	if(bt_menu2 == NULL)
+	{
+		printf("Nao carregou botao menu 2.");
+        return 0;
+	}
+	bt_nj = IMG_Load("novo_jogo.png");
+	if(bt_nj == NULL)
+	{
+		printf("Nao carregou botao novo jogo.");
+        return 0;
+	}
+	bt_iniciardestaque = IMG_Load("iniciar_destaque.png");
+	if(bt_iniciardestaque == NULL)
+	{
+		printf("Nao carregou botao iniciar.");
+        return 0;
+	}
+	bt_recordedestaque = IMG_Load("recordes_destaque.png");
+	if(bt_recordedestaque == NULL)
+	{
+		printf("Nao carregou botao recorde.");
+        return 0;
+	}
+	bt_manualdestaque= IMG_Load("manual_destaque.png");
+	if(bt_manualdestaque == NULL)
+	{
+		printf("Nao carregou botao manual.");
+        return 0;
+	}
+	bt_creditosdestaque = IMG_Load("creditos_destaque.png");
+	if(bt_creditosdestaque == NULL)
+	{
+		printf("Nao carregou botao creditos.");
+        return 0;
+	}
+	bt_menudestaque = IMG_Load("menu_destaque.png");
+	if(bt_menudestaque == NULL)
+	{
+        printf("Nao carregou o boao menu destaque");
+    }
+    bt_jogardestaque = IMG_Load("jogar_destaque.png");
+	if(bt_jogardestaque == NULL)
+	{
+		printf("Nao carregou botao jogar destaque.");
+        return 0;
+	}
+	bt_okdestaque = IMG_Load("ok_destaque.png");
+	if(bt_okdestaque == NULL)
+	{
+		printf("Nao carregou botao ok destaque.");
+        return 0;
+	}
+	bt_njdestaque = IMG_Load("novojogo_destaque.png");
+	if(bt_njdestaque == NULL)
+	{
+		printf("Nao carregou botao novo jogo destaque.");
+        return 0;
+	}
+	bt_menu2destaque = IMG_Load("menu2_destaque.png");
+	if(bt_menu2destaque == NULL)
+	{
+		printf("Nao carregou botao menu 2 destaque.");
+        return 0;
+	}
+	
+    return 1;
+}
+
+/*char totalDePontos[8];
+void pontuacao()
+{	
+	if(aumentaPontos == 1)
+	{
+		pontos += 10;
+        printf("%d", pontos);
+		aumentaPontos = 0;
+	}
+	sprintf(totalDePontos, "%i", pontos);
+	
+	SDL_Color fColor = {0, 0, 0};
+	
+	numerosPontos = TTF_RenderText_Solid( fonte , totalDePontos , fColor );
+	
+	SDL_BlitSurface( numerosPontos , NULL , tela , &destinoPontos );
+ }
+*/
+
+//Funcao que escreve texto
+
+//escreveTexto(fonte, 0, 0, corTexto, "%d", pontuacao);
+void escreveTexto(TTF_Font *font, int x, int y, SDL_Color cor, const char *format,...){
+    SDL_Surface *aux;
+    SDL_Rect ret={x,y,0,0};
+
+    // Imprimindo para vetor
+    char buf[256];
+    va_list args;
+    va_start (args, format);
+    vsprintf (buf, format, args);
+    va_end(args);
+
+    aux = TTF_RenderText_Blended(font, buf, cor);
+    SDL_BlitSurface(aux, 0, tela, &ret);
+    SDL_FreeSurface(aux);
+}
+
+void menu_principal(SDL_Event evento)
+{
+	
+	while(sairMenu == 0)
+	{
+        sprintf(hud, "Bombergirls - Menu Principal");
+        SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+        SDL_BlitSurface(logo, NULL, tela, &destinoLogo);
+        SDL_BlitSurface(bombergirl, NULL, tela, &destinoBgirl);
+        SDL_BlitSurface(bt_iniciar, NULL, tela, &destinoBtIniciar);
+        SDL_BlitSurface(bt_recorde, NULL, tela, &destinoBtRecorde);
+        SDL_BlitSurface(bt_manual, NULL, tela, &destinoBtManual);
+        SDL_BlitSurface(bt_creditos, NULL, tela, &destinoBtCreditos);
+        
+		while(SDL_PollEvent(&evento))
+        {
+			/* Definição para fim do loop principal e do menu */
+            if(evento.type == SDL_QUIT)
+            {
+            	fim = 1;
+				sairMenu = 1;
+			}
+			
+			/* Verifica se o player pessionou algum botão */
+            if (evento.type == SDL_KEYDOWN)
+            {
+				/* Ação para cada botão apertado */
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairMenu = 1;
+                    break;
+					/* Quando aperta pra cima ele muda o valor do botão (serve pra saber qual botão está e para animar) */
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+					/* Quando aperta pra baixo ele muda o valor do botão (serve pra saber qual botão está e para animar) */
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>4)
+							botaoMenu = 4;
+					break;
+					
+					/* Quando aperta enter */ 
+					case SDLK_RETURN: //enter
+					if(botaoMenu == 1)
+					{
+                        //tiniciar = 1;
+						sairMenu = 1;
+						//sairRecorde = 1;
+						//sairManual = 1;
+						//sairCreditos = 1;
+					}
+					if(botaoMenu == 2)
+					{
+                        menu_recordes(evento); 
+                        //sairRecorde = 0;
+                        
+						//trecordes = 1;
+						sairMenu = 1;
+					}
+					if(botaoMenu == 3)
+					{
+                        menu_manual(evento);
+                        //sairManual = 0;
+
+						//tmanual = 1;
+						sairMenu = 1;
+					}
+					if(botaoMenu == 4)
+					{
+                        menu_creditos(evento);
+                        //sairCreditos = 0;
+                        
+						//tcred = 1;
+						sairMenu = 1;
+					}
+					break;
+					
+					default:
+					break;
+				}
+			}
+		}
+		/* blita uma imagem para cada valor do botão */ 
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_iniciardestaque, NULL, tela, &destinoBtIniciarD);
+		
+		if(botaoMenu == 2)
+		SDL_BlitSurface(bt_recordedestaque, NULL, tela, &destinoBtRecordeD);
+		
+		if(botaoMenu == 3)
+		SDL_BlitSurface(bt_manualdestaque, NULL, tela, &destinoBtManualD);
+		
+		if(botaoMenu == 4)
+		SDL_BlitSurface(bt_creditosdestaque, NULL, tela, &destinoBtCreditosD);
+			
+		SDL_UpdateRect(tela, 0,0,0,0); /* Atualiza todo o screen */ 
+	}
+}
+
+void menu_recordes(SDL_Event evento)
+{     
+     while(sairRecorde == 0)
+     {
+         sprintf(hud, "Bombergirls - Recordes");
+         SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+         SDL_BlitSurface(titulo_recordes, NULL, tela, &destinoTtRecordes);
+         SDL_BlitSurface(trofeu, NULL, tela, &destinoTrofeuR);
+         SDL_BlitSurface(bt_menu, NULL, tela, &destinoBtMenuR);
+         SDL_BlitSurface(classificacao, NULL, tela, &destinoClassific);
+         
+         while(SDL_PollEvent(&evento))
+         {
+             if(evento.type == SDL_QUIT)
+             {
+                 fim = 1;
+				 sairRecorde = 1;
+             }
+             if (evento.type == SDL_KEYDOWN)
+             {
+				/* Ação para cada botão apertado */
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairRecorde = 1;
+                    break;
+                    
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_RETURN:
+                         if(botaoMenu == 1)
+					     {
+                             menu_principal(evento);
+                             //sairMenu = 0;
+                             sairRecorde = 1;
+                         }
+                         break;
+					
+					default:
+					break;
+				}//fecha switch
+			}//fecha if
+		
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_menudestaque, NULL, tela, &destinoBtMenuR);
+			
+		SDL_UpdateRect(tela, 0,0,0,0);
+                                      
+         }//fecha 2º while
+     }//fecha 1º while
+}//fecha função
+
+void menu_manual(SDL_Event evento)
+{
+     while(sairManual == 0)
+     {
+         sprintf(hud, "Bombergirls - Manual");
+         SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+         SDL_BlitSurface(titulo_manual, NULL, tela, &destinoTtManual);
+         SDL_BlitSurface(comandos, NULL, tela, &destinoComandos);
+         SDL_BlitSurface(bt_menu, NULL, tela, &destinoBtMenuM);
+         SDL_BlitSurface(bt_jogar, NULL, tela, &destinoBtJogar);
+         
+         while(SDL_PollEvent(&evento))
+         {
+             if(evento.type == SDL_QUIT)
+             {
+                 fim = 1;
+				 sairManual = 1;
+             }
+             if (evento.type == SDL_KEYDOWN)
+             {
+				// Ação para cada botão apertado
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairManual = 1;
+                    break;
+                    
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>2)
+							botaoMenu = 2;
+					break;
+
+					case SDLK_RETURN:
+                         if(botaoMenu == 1)
+					     {
+                             sairMenu = 1; // <------------------------------------------------------------------------------ Mudei Aqui
+                             sairManual = 1;
+                         }
+                         if(botaoMenu == 2)
+					     {
+                             menu_principal(evento);
+                             //sairMenu = 0; // <------------------------------------------------------------------------------ Mudei Aqui
+                             sairManual = 1;
+                         }
+                         break;
+					
+					default:
+					break;
+				}//fecha switch
+			}//fecha if
+		
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_jogardestaque, NULL, tela, &destinoBtJogar);
+		if(botaoMenu == 2)
+		SDL_BlitSurface(bt_menudestaque, NULL, tela, &destinoBtMenuM);
+			
+		SDL_UpdateRect(tela, 0,0,0,0);
+                                      
+         }//fecha 2º while
+     }//fecha 1º while
+}//fecha função
+
+void menu_creditos(SDL_Event evento)
+{
+     while(sairCreditos == 0)
+     {
+         sprintf(hud, "Bombergirls - Creditos");
+         SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+         SDL_BlitSurface(titulo_creditos, NULL, tela, &destinoTtCreditos);
+         SDL_BlitSurface(cr, NULL, tela, &destinoCred);
+         SDL_BlitSurface(bt_menu, NULL, tela, &destinoBtMenuC);
+         
+         while(SDL_PollEvent(&evento))
+         {
+             if(evento.type == SDL_QUIT)
+             {
+                 fim = 1;
+				 sairCreditos = 1;
+             }
+             if (evento.type == SDL_KEYDOWN)
+             {
+				/* Ação para cada botão apertado */
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairCreditos = 1;
+                    break;
+                    
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_RETURN:
+                         if(botaoMenu == 1)
+					     {
+                             menu_principal(evento);
+                             //sairMenu = 0;
+                             sairCreditos = 1;
+                         }
+                         break;
+					
+					default:
+					break;
+				}//fecha switch
+			}//fecha if
+		
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_menudestaque, NULL, tela, &destinoBtMenuC);
+			
+		SDL_UpdateRect(tela, 0,0,0,0);
+                                      
+         }//fecha 2º while
+     }//fecha 1º while
+}//fecha função
+
+void menu_novorecorde(SDL_Event evento)
+{     
+     while(sairNRecorde == 0)
+     {
+         SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+         SDL_BlitSurface(trofeu, NULL, tela, &destinoTrofeuNR);
+         SDL_BlitSurface(titulo_nr, NULL, tela, &destinoTtNR);
+         SDL_BlitSurface(mensagem, NULL, tela, &destinoMensagem);
+         SDL_BlitSurface(bt_ok, NULL, tela, &destinoBtOk);
+         SDL_BlitSurface(entrada, NULL, tela, &destinoEntrada);
+         
+         while(SDL_PollEvent(&evento))
+         {
+             if(evento.type == SDL_QUIT)
+             {
+                 fim = 1;
+				 sairNRecorde = 1;
+             }
+             if (evento.type == SDL_KEYDOWN)
+             {
+				// Ação para cada botão apertado
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairNRecorde = 1;
+                    break;
+                    
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_RETURN:
+                         if(botaoMenu == 1)
+					     {
+                             menu_principal(evento);
+                             //sairMenu = 0;
+                             sairNRecorde = 1;
+                         }
+                         break;
+					
+					default:
+					break;
+				}//fecha switch
+			}//fecha if
+		
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_okdestaque, NULL, tela, &destinoBtOk);
+			
+		SDL_UpdateRect(tela, 0,0,0,0);
+                                      
+         }//fecha 2º while
+     }//fecha 1º while
+}//fecha função
+
+void menu_fimWin(SDL_Event evento)
+{     
+     while(sairFimWin == 0)
+     {
+         SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+         SDL_BlitSurface(titulo_fim, NULL, tela, &destinoTtFim);
+         SDL_BlitSurface(bombergirl2, NULL, tela, &destinoBGirlFJ);
+         SDL_BlitSurface(mensagem2, NULL, tela, &destinoMensagem2);
+         SDL_BlitSurface(fundo_pont, NULL, tela, &destinoFundoPont);
+         SDL_BlitSurface(bt_nj, NULL, tela, &destinoNJ);
+         SDL_BlitSurface(bt_menu2, NULL, tela, &destinoMenu2);
+         
+         while(SDL_PollEvent(&evento))
+         {
+             if(evento.type == SDL_QUIT)
+             {
+                 fim = 1;
+				 sairFimWin = 1;
+             }
+             if (evento.type == SDL_KEYDOWN)
+             {
+				// Ação para cada botão apertado 
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairNRecorde = 1;
+                    break;
+                    
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>2)
+							botaoMenu = 2;
+					break;
+
+					case SDLK_RETURN:
+                         if(botaoMenu == 1)
+					     {
+                             //jogo();           CONSERTAR ISSO!!
+                             menu_principal(evento);
+                             //sairMenu = 1;
+                             sairFimWin = 1;
+						     /*sairRecorde = 1;
+						     sairManual = 1;
+						     sairCreditos = 1;
+						     sairNRecorde = 1;*/
+                         }
+                         if(botaoMenu == 2)
+					     {
+                             menu_principal(evento);
+                             //sairMenu = 0;
+                             sairFimWin = 1;
+                         }
+                         break;
+					
+					default:
+					break;
+				}//fecha switch
+			}//fecha if
+		
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_njdestaque, NULL, tela, &destinoNJ);
+		if(botaoMenu == 2)
+		SDL_BlitSurface(bt_menu2destaque, NULL, tela, &destinoMenu2);
+			
+		SDL_UpdateRect(tela, 0,0,0,0);
+                                      
+         }//fecha 2º while
+     }//fecha 1º while
+}//fecha função
+
+void menu_fimLoose(SDL_Event evento)
+{     
+     while(sairFimLoose == 0)
+     {
+         SDL_BlitSurface(fundo_menu, NULL, tela, NULL);
+        SDL_BlitSurface(titulo_fim, NULL, tela, &destinoTtFim);
+        SDL_BlitSurface(rip, NULL, tela, &destinoRip);
+        SDL_BlitSurface(mensagem3, NULL, tela, &destinoMensagem3);
+        SDL_BlitSurface(fundo_pont, NULL, tela, &destinoFundoPont);
+        SDL_BlitSurface(bt_nj, NULL, tela, &destinoNJ);
+        SDL_BlitSurface(bt_menu2, NULL, tela, &destinoMenu2);
+         
+         while(SDL_PollEvent(&evento))
+         {
+             if(evento.type == SDL_QUIT)
+             {
+                 fim = 1;
+				 sairFimLoose = 1;
+             }
+             if (evento.type == SDL_KEYDOWN)
+             {
+				//Ação para cada botão apertado
+                switch (evento.key.keysym.sym)
+                {
+					case SDLK_ESCAPE:
+                    	fim = 1;
+						sairFimLoose = 1;
+                    break;
+                    
+					case SDLK_UP:
+						botaoMenu -= 1;
+						if(botaoMenu<1)
+							botaoMenu = 1;
+					break;
+
+					case SDLK_DOWN:
+						botaoMenu += 1;
+						if(botaoMenu>2)
+							botaoMenu = 2;
+					break;
+
+					case SDLK_RETURN:
+                         if(botaoMenu == 1)
+					     {
+                             //jogo();           CONSERTAR ISSO!!
+                             menu_principal(evento);
+                             sairMenu = 0;
+                             sairFimLoose = 1;
+						     /*sairRecorde = 1;
+						     sairManual = 1;
+						     sairCreditos = 1;
+						     sairNRecorde = 1;*/
+                         }
+                         if(botaoMenu == 2)
+					     {
+                             menu_principal(evento);
+                             //sairMenu = 0;
+                             sairFimWin = 1;
+                         }
+                         break;
+					
+					default:
+					break;
+				}//fecha switch
+			}//fecha if
+		
+		if(botaoMenu == 1)
+		SDL_BlitSurface(bt_njdestaque, NULL, tela, &destinoNJ);
+		if(botaoMenu == 2)
+		SDL_BlitSurface(bt_menu2destaque, NULL, tela, &destinoMenu2);
+			
+		SDL_UpdateRect(tela, 0,0,0,0);
+                                      
+         }//fecha 2º while
+     }//fecha 1º while
+}//fecha função
+
+/* Funcao para desenhar o Mapa */
+void desenha_mapa ()
+{
+     SDL_Rect destino;
+     int linha, coluna;
+     
+     for (linha = 0; linha < 15; linha++)
+     {
+         destino.y = linha * 50;
+         for (coluna = 0; coluna < 17; coluna++)
+         {
+             destino.x = coluna * 50;
+             if (mapa[linha][coluna] == INDESTRUTIVEL)
+             {
+                /* pegue a imagem parede completa(NULL) e jogue na tela em destino */
+                SDL_BlitSurface(tijolo_indestrutivel, NULL, tela, &destino);
+             }
+             else if (mapa[linha][coluna] == CHAO)
+             {
+                  /* pegue a imagem grama completa(NULL) e jogue na tela em destino */
+                  SDL_BlitSurface(tijolo_vazio, NULL, tela, &destino);
+             }
+             else if (mapa[linha][coluna] == DESTRUTIVEL)
+             {
+                  /* pegue a imagem grama completa(NULL) e jogue na tela em destino */
+                  SDL_BlitSurface(tijolo_destrutivel, NULL, tela, &destino);
+             }
+			 /*else if (mapa[linha][coluna] == FUNDO)
+             {
+                  // pegue a imagem grama completa(NULL) e jogue na tela em destino 
+                  SDL_BlitSurface(imagemFundo, NULL, tela, &destino);
+             }*/
+             else if (mapa[linha][coluna] == PORTAL)
+             {
+                  /* pegue a imagem grama completa(NULL) e jogue na tela em destino */
+                  SDL_BlitSurface(tijolo_destrutivel, NULL, tela, &destino);
+             }
+             else if (mapa[linha][coluna] == SAIDA)
+             {
+                  SDL_BlitSurface(portal, NULL, tela, &destino);
+             }
+         }
+     }
+}
+
+void move_jogador ( SDL_Event event )
+{
+     /*=============== Deslocamento do jogador =====================*/
+     switch (event.type)
+     {
+            case SDL_KEYDOWN:
+                 switch (event.key.keysym.sym)
+                 {
+                        /* Na vertical */
+                        case SDLK_UP:
+                             /* Se o usuario aperta a seta para cima e linha_atual for maior que 0 ... */
+                             if (linha_atual > 0) /* 0 = primeira linha */
+                             {
+                                 /* ...subtraia 1 de linha_atual, ou seja, suba uma linha... */
+                                 linha_atual --;
+                                 /* ... e verifique a localizacao do jogador ...*/
+                                 if (mapa[linha_atual][coluna_atual] == INDESTRUTIVEL || mapa[linha_atual][coluna_atual] == DESTRUTIVEL || mapa[linha_atual][coluna_atual] == PORTAL)
+                                 {
+                                     linha_atual = linha_atual + 1;
+                                 }
+                             }
+                        break;
+            
+                        case SDLK_DOWN:
+                             if (linha_atual < 13)
+                             {
+                                 linha_atual = linha_atual + 1;
+                                 if (mapa[linha_atual][coluna_atual] == INDESTRUTIVEL || mapa[linha_atual][coluna_atual] == DESTRUTIVEL || mapa[linha_atual][coluna_atual] == PORTAL)
+                                 {
+                                     linha_atual = linha_atual - 1;
+                                 }
+                             }
+                        break;
+
+                        /* Na horizontal */
+                        case SDLK_LEFT:
+                             /* Se o usuario aperta a seta para esquerda e coluna_atual for maior que 0 ... */
+                             if (coluna_atual > 0) /* 0 = primeira coluna */
+                             {
+                                 /* ...subtraia 1 de coluna_atual, ou seja, recue uma coluna ... */
+                                 coluna_atual = coluna_atual - 1;
+                                 /* ... e verifique a localizacao do jogador ...*/
+                                 if (mapa[linha_atual][coluna_atual] == INDESTRUTIVEL || mapa[linha_atual][coluna_atual] == DESTRUTIVEL || mapa[linha_atual][coluna_atual] == PORTAL)
+                                 {
+                                     coluna_atual = coluna_atual + 1;
+                                 }
+                             }
+                        break;
+                        
+                        case SDLK_RIGHT:
+                             if (coluna_atual < 39)/* 39 = ultima coluna */
+                             {
+                                 coluna_atual = coluna_atual + 1;
+                                 if (mapa[linha_atual][coluna_atual] == INDESTRUTIVEL || mapa[linha_atual][coluna_atual] == DESTRUTIVEL || mapa[linha_atual][coluna_atual] == PORTAL)
+                                 {
+                                     coluna_atual = coluna_atual - 1;
+                                 }
+                             }
+                        break;
+                        
+                        default:
+                                break;
+                 }
+     }
+}
+
+void move_inimigo(int movimento)
+{
+     switch (movimento)
+     {
+            case 0: //cima
+                 if (linhaInimigo1_atual > 0)
+                 {
+                        linhaInimigo1_atual --;
+                        if (mapa[linhaInimigo1_atual][colunaInimigo1_atual] == INDESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        linhaInimigo1_atual = linhaInimigo1_atual + 1;
+                 }
+                 
+                 if (linhaInimigo2_atual > 0)
+                 {
+                        linhaInimigo2_atual --;
+                        if (mapa[linhaInimigo2_atual][colunaInimigo2_atual] == INDESTRUTIVEL || mapa[linhaInimigo2_atual][colunaInimigo2_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        linhaInimigo2_atual = linhaInimigo2_atual + 1;      
+                 }
+                 
+                 if (linhaInimigo3_atual > 0)
+                 {
+                        linhaInimigo3_atual --;
+                        if (mapa[linhaInimigo3_atual][colunaInimigo3_atual] == INDESTRUTIVEL || mapa[linhaInimigo3_atual][colunaInimigo3_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        linhaInimigo3_atual = linhaInimigo3_atual + 1;      
+                 }
+                 break;
+                        
+            case 1: //baixo
+                 if (linhaInimigo1_atual < 11)
+                 {
+                        linhaInimigo1_atual = linhaInimigo1_atual + 1;
+                        if (mapa[linhaInimigo1_atual][colunaInimigo1_atual] == INDESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        linhaInimigo1_atual = linhaInimigo1_atual - 1;
+                 }
+                 
+                 if (linhaInimigo2_atual < 11)
+                 {
+                        linhaInimigo2_atual = linhaInimigo2_atual + 1;
+                        if (mapa[linhaInimigo2_atual][colunaInimigo2_atual] == INDESTRUTIVEL || mapa[linhaInimigo2_atual][colunaInimigo2_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        linhaInimigo2_atual = linhaInimigo2_atual - 1;
+                 }
+                 
+                 if (linhaInimigo3_atual < 11)
+                 {
+                        linhaInimigo3_atual = linhaInimigo3_atual + 1;
+                        if (mapa[linhaInimigo3_atual][colunaInimigo3_atual] == INDESTRUTIVEL || mapa[linhaInimigo3_atual][colunaInimigo3_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        linhaInimigo3_atual = linhaInimigo3_atual - 1;
+                 }
+                 break;
+            
+            case 2: //esquerda
+                 if (colunaInimigo1_atual > 0)
+                 {
+                        colunaInimigo1_atual = colunaInimigo1_atual - 1;
+                        if (mapa[linhaInimigo1_atual][colunaInimigo1_atual] == INDESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        colunaInimigo1_atual = colunaInimigo1_atual + 1;
+                 }
+                 
+                 if (colunaInimigo2_atual > 0)
+                 {
+                        colunaInimigo2_atual = colunaInimigo2_atual - 1;
+                        if (mapa[linhaInimigo2_atual][colunaInimigo2_atual] == INDESTRUTIVEL || mapa[linhaInimigo2_atual][colunaInimigo2_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        colunaInimigo2_atual = colunaInimigo2_atual + 1;
+                 }
+                 
+                 if (colunaInimigo3_atual > 0)
+                 {
+                        colunaInimigo3_atual = colunaInimigo3_atual - 1;
+                        if (mapa[linhaInimigo3_atual][colunaInimigo3_atual] == INDESTRUTIVEL || mapa[linhaInimigo3_atual][colunaInimigo3_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        colunaInimigo3_atual = colunaInimigo3_atual + 1;
+                 }
+                 break;
+                        
+            case 3: //direita
+                 if (colunaInimigo1_atual < 39)
+                 {
+                        colunaInimigo1_atual = colunaInimigo1_atual + 1;
+                        if (mapa[linhaInimigo1_atual][colunaInimigo1_atual] == INDESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        colunaInimigo1_atual = colunaInimigo1_atual - 1;
+                 }
+                 
+                 if (colunaInimigo2_atual < 39)
+                 {
+                        colunaInimigo2_atual = colunaInimigo2_atual + 1;
+                        if (mapa[linhaInimigo2_atual][colunaInimigo2_atual] == INDESTRUTIVEL || mapa[linhaInimigo2_atual][colunaInimigo2_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        colunaInimigo2_atual = colunaInimigo2_atual - 1;
+                 }
+                 
+                 if (colunaInimigo3_atual < 39)
+                 {
+                        colunaInimigo3_atual = colunaInimigo3_atual + 1;
+                        if (mapa[linhaInimigo3_atual][colunaInimigo3_atual] == INDESTRUTIVEL || mapa[linhaInimigo3_atual][colunaInimigo3_atual] == DESTRUTIVEL || mapa[linhaInimigo1_atual][colunaInimigo1_atual] == PORTAL)
+                        colunaInimigo3_atual = colunaInimigo3_atual - 1;
+                 }
+                 break;
+                        
+            default:
+                 break;
+     }              
+}
+
+void explosao(int mapa[13][17],Bomba *bomba)
+{
+     //CIMA
+     bomba->cima.x = bomba->quad.x;
+     bomba->cima.y = bomba->quad.y-50;
+     
+     if(mapa[bomba->i-1][bomba->j] == CHAO)
+     {
+            bomba->cimaAtiva = 1;
+     }
+     else if(mapa[bomba->i-1][bomba->j] == DESTRUTIVEL)
+     {
+            mapa[bomba->i-1][bomba->j] = CHAO;
+            bomba->cimaAtiva = 0;
+            pontos += 10;
+            //aumentaPontos = 1;
+     }
+     else if(mapa[bomba->i-1][bomba->j] == PORTAL)
+     {
+            mapa[bomba->i-1][bomba->j] = SAIDA;
+            bomba->cimaAtiva = 0;
+            pontos += 10;
+            /*aumentaPontos = 1;
+            aumentaPontos = 1;
+            aumentaPontos = 1;*/
+     }
+     else
+     {
+            bomba->cimaAtiva = 0;
+     }
+     
+     //BAIXO
+     bomba->baixo.x = bomba->quad.x;
+     bomba->baixo.y = bomba->quad.y+50;
+     
+     if(mapa[bomba->i+1][bomba->j] == CHAO)
+     {
+            bomba->baixoAtiva = 1;
+     }
+     else if(mapa[bomba->i+1][bomba->j] == DESTRUTIVEL)
+     {
+          mapa[bomba->i+1][bomba->j] = CHAO;
+          bomba->baixoAtiva = 0;
+          pontos += 10;
+          //aumentaPontos = 1;
+     }
+     else if(mapa[bomba->i+1][bomba->j] == PORTAL)
+     {
+          mapa[bomba->i+1][bomba->j] = SAIDA;
+          bomba->baixoAtiva = 0;
+          pontos += 10;
+          /*aumentaPontos = 1;
+          aumentaPontos = 1;
+          aumentaPontos = 1;*/
+     }
+     else
+     {
+          bomba->baixoAtiva = 0;
+     }
+     
+     //ESQUERDA
+     bomba->esquerda.x = bomba->quad.x-50;
+     bomba->esquerda.y = bomba->quad.y;
+     
+     if(mapa[bomba->i][bomba->j-1] == CHAO)
+     {
+            bomba->esquerdaAtiva = 1;
+     }
+     else if(mapa[bomba->i][bomba->j-1] == DESTRUTIVEL)
+     {
+            mapa[bomba->i][bomba->j-1] = CHAO;
+            bomba->esquerdaAtiva = 0;
+            pontos += 10;
+            //aumentaPontos = 1;
+     }
+     else if(mapa[bomba->i][bomba->j-1] == PORTAL)
+     {
+            mapa[bomba->i][bomba->j-1] = SAIDA;
+            bomba->esquerdaAtiva = 0;
+            pontos += 10;
+            /*aumentaPontos = 1;
+            aumentaPontos = 1;
+            aumentaPontos = 1;*/
+     }
+    else
+    {
+            bomba->esquerdaAtiva = 0;
+	}
+	
+	//DIREITA
+	bomba->direita.x = bomba->quad.x+50;
+	bomba->direita.y = bomba->quad.y;
+	
+	if(mapa[bomba->i][bomba->j+1] == CHAO)
+    {
+            bomba->direitaAtiva = 1;
+	}
+    else if(mapa[bomba->i][bomba->j+1] == DESTRUTIVEL)
+    {
+            mapa[bomba->i][bomba->j+1] = CHAO;
+            bomba->direitaAtiva = 0;
+            pontos += 10;
+            //aumentaPontos = 1;
+	}
+	else if(mapa[bomba->i][bomba->j+1] == PORTAL)
+    {
+            mapa[bomba->i][bomba->j+1] = SAIDA;
+            bomba->direitaAtiva = 0;
+            pontos += 10;
+            /*aumentaPontos = 1;
+            aumentaPontos = 1;
+            aumentaPontos = 1;*/
+	}
+    else
+    {
+            bomba->direitaAtiva = 0;
+	}
+	
+	//CENTRO
+	bomba->centro.x = bomba->quad.x;
+	bomba->centro.y = bomba->quad.y;
+	bomba->centroAtiva = 1;	
+
+}
+
+int main ( int argc, char** argv )
+{
+    srand(time(NULL));
+    
+    //inicializando a SDL e verificando possiveis erros
+    if(SDL_Init(SDL_INIT_VIDEO) != 0)
+    {
+            printf("Erro: %s\n", SDL_GetError());
+            exit(-1);
+    }
+    /*AQUI!!
+    //Inicia o SDL_ttf
+    if( TTF_Init() == -1 ) {
+        return 0;
+    }*/
+    TTF_Init();
+    fonte = TTF_OpenFont( "pixel.ttf", 40 );
+    SDL_Rect destino; //para blitar o jogador
+    SDL_Rect inicio;
+    SDL_Rect destinoInimigo1, destinoInimigo2, destinoInimigo3;
+    //SDL_Rect inimigos[3];
+    SDL_Event evento; /* para os eventos */
+    int i, tempo;
+
+    /*TTF_Font *font = TTF_OpenFont( "arial.ttf", 28 );;      // AQUI!!
+    SDL_Color textColor = {0,0,0};*/
+    
+    /*inimigo[0].x = 0;
+    inimigo[0].y = 0;
+    inimigo[0].w = 50;
+    inimigo[0].h = 50;*/
+    
+    /* Carrega as imagens */
+    if (carrega_imagens() == 0) /* Se nÃ£o carregou uma ou outra imagem */
+    {
+            return 1; /* encerre o programa */
+    }
+    
+    /* Configura o Video */
+    tela = SDL_SetVideoMode(LARGURA, ALTURA, BPP, SDL_SWSURFACE | SDL_ANYFORMAT);
+    if(tela == NULL)
+    {
+            printf("Erro: %s\n", SDL_GetError());
+            return 1; /* encerre o programa */
+    }
+    //posição inicial
+    inicio.x = 1 * 50; 
+    inicio.y = 2 * 50;
+    
+    int tempo_inicial;
+    Bomba bomba;
+    bomba.ativa = 0;
+    bomba.centroAtiva = 0;
+    bomba.cimaAtiva = 0;
+    bomba.baixoAtiva = 0;
+    bomba.esquerdaAtiva = 0;
+    bomba.direitaAtiva = 0;
+    
+    Inimigo inimigo[3];
+    inimigo[0].ativo = 1;
+    inimigo[1].ativo = 1;
+    inimigo[2].ativo = 1;    
+    
+    /* Loop principal */
+    while (sairJogo == 0) // || vidas != 0 /* Enquanto nao for verdadeiro o fim ou o player ainda possuir vidas*/
+    {
+          menu_principal(evento);
+
+          printf("%d",vidas);
+          morto = 0;
+          
+          /* Para a funcao controla_fps */
+          tempo_inicial = SDL_GetTicks();
+          sprintf(hud, "Bombergirls");
+          SDL_WM_SetCaption(hud, NULL);
+          
+          /* Loop de eventos */
+          while(SDL_PollEvent(&evento))
+          {
+              if(evento.type == SDL_QUIT)
+              {
+              	sairJogo = 1;
+              	break;
+              }
+
+              /* move o jogador */
+              if (evento.type == SDL_KEYDOWN)
+              switch (evento.type)
+              {
+                     case SDLK_ESCAPE:
+                          sairJogo = 1;
+						  sairMenu = 0;
+                          break;
+                          
+                     case SDL_KEYDOWN:
+                          switch (evento.key.keysym.sym)
+                          {
+                                 /* Na vertical */
+                                 case SDLK_UP:
+                                      move_jogador(evento);
+				                      break;
+                                 case SDLK_DOWN:
+				                      move_jogador(evento);
+				                      break;
+                                 case SDLK_LEFT:
+				                      move_jogador(evento);
+			                          break;
+                                 case SDLK_RIGHT:
+				                      move_jogador(evento);
+				                      break;
+                                      
+                                 case SDLK_SPACE:
+                                      if (bomba.ativa == 0)//so permite uma bomba por vez. assim uma nao anula outra
+                                      {
+                                          bomba.ativa = 1;
+					                      bomba.quad.x = destino.x;
+					                      bomba.quad.y = destino.y;
+					                      bomba.time = SDL_GetTicks();
+					                      bomba.i = linha_atual;
+					                      bomba.j = coluna_atual;
+                                      }
+                                      break;
+                           }
+              }
+                  
+          }
+          
+          for (i = 0; i < 3; i++)
+          {
+              if(inimigo[i].ativo == 1)
+              {
+                  if(tempoDeMovimentoInimigo == 6)
+				  {
+                      srand((unsigned)time(NULL));
+                      int movimento = rand()%4;
+                      move_inimigo(movimento);
+                      tempoDeMovimentoInimigo = 0; // zera tudo
+				  }
+                  
+                  if(inimigo[i].quad.x == destino.x && inimigo[i].quad.y == destino.y)
+                  {
+                      SDL_BlitSurface(playerMorto, NULL, tela, &destino);
+                      tempo_morte = SDL_GetTicks();
+                      vidas -=1;
+                      morto = 1;
+                  }
+              }
+          }
+          
+          if(SDL_GetTicks() - bomba.time > 3000 && bomba.ativa == 1)
+          {
+                     bomba.ativa = 0;
+                     bomba.time = 0;
+	
+                     explosao(mapa,&bomba);
+                     bombaExplosao = SDL_GetTicks();
+          }
+
+          if (SDL_GetTicks() - bombaExplosao > 1500)
+          {
+              bomba.centroAtiva = 0;
+              bomba.baixoAtiva = 0;
+              bomba.cimaAtiva = 0;
+              bomba.direitaAtiva = 0;
+              bomba.esquerdaAtiva = 0;
+          }
+
+          /* Pinta a tela inteira de branco antes de desenhar o mapa, esse branco eh o caminho */
+          SDL_FillRect(tela, NULL, SDL_MapRGB(tela->format, 255, 255, 255));
+
+          /* Desenha o mapa sobre a tela */
+          desenha_mapa();
+
+          /* blita o jogador na tela */
+          /* para o jogador: destino.x = coluna_atual*largura_da_imagem e destino.y = linha_atual*altura_da_imagem */
+          destino.x = coluna_atual * 50;
+          destino.y = linha_atual * 50;
+          
+          inimigo[0].quad.x = colunaInimigo1_atual * 50;
+          inimigo[0].quad.y = linhaInimigo1_atual * 50;
+          
+          inimigo[1].quad.x = colunaInimigo2_atual * 50;
+          inimigo[1].quad.y = linhaInimigo2_atual * 50;
+          
+          inimigo[2].quad.x = colunaInimigo3_atual * 50;
+          inimigo[2].quad.y = linhaInimigo3_atual * 50;
+          
+          /* pegue a imagem player completa(NULL) e jogue na tela em destino */
+          if(bomba.ativa ==1)
+          SDL_BlitSurface(imagemBomba, NULL, tela, &bomba.quad);
+
+
+          //Daqui pra baixo: se as explosões estiverem ativas, verifica as posições do player/inimigo para fazer a colisão	
+	      if(bomba.centroAtiva ==1)
+	      {
+              SDL_BlitSurface(explosaoBomba, NULL, tela, &bomba.centro);
+              if(bomba.centro.x == destino.x && bomba.centro.y == destino.y)
+              {
+                  SDL_BlitSurface(playerMorto, NULL, tela, &destino);
+                  tempo_morte = SDL_GetTicks();
+                  vidas -= 1;
+                  morto = 1;
+              }
+              if (bomba.centro.x == inimigo[0].quad.x && bomba.centro.y == inimigo[0].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[0].quad);
+                  inimigo[0].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.centro.x == inimigo[1].quad.x && bomba.centro.y == inimigo[1].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[1].quad);
+                  inimigo[1].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.centro.x == inimigo[2].quad.x && bomba.centro.y == inimigo[2].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[2].quad);
+                  inimigo[2].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+          }
+	      
+	      if(bomba.cimaAtiva ==1)
+		  {
+              SDL_BlitSurface(explosaoBomba, NULL, tela, &bomba.cima);//explosaoUp
+              if(bomba.cima.x == destino.x && bomba.cima.y == destino.y)
+              {
+                  SDL_BlitSurface(playerMorto, NULL, tela, &destino);
+                  tempo_morte = SDL_GetTicks();
+                  morto = 1;
+              }
+              if (bomba.cima.x == inimigo[0].quad.x && bomba.cima.y == inimigo[0].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[0].quad);
+                  inimigo[0].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.cima.x == inimigo[1].quad.x && bomba.cima.y == inimigo[1].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[1].quad);
+                  inimigo[1].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.cima.x == inimigo[2].quad.x && bomba.cima.y == inimigo[2].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[2].quad);
+                  inimigo[2].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }              
+          }
+	
+	      if(bomba.baixoAtiva ==1)
+		  {
+              SDL_BlitSurface(explosaoBomba, NULL, tela, &bomba.baixo);//explosaoDown
+              if(bomba.baixo.x == destino.x && bomba.baixo.y == destino.y)
+		      {
+                  SDL_BlitSurface(playerMorto, NULL, tela, &destino);
+                  tempo_morte = SDL_GetTicks();
+                  morto = 1;
+              }
+              if (bomba.baixo.x == inimigo[0].quad.x && bomba.baixo.y == inimigo[0].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[0].quad);
+                  inimigo[0].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.baixo.x == inimigo[1].quad.x && bomba.baixo.y == inimigo[1].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[1].quad);
+                  inimigo[1].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.baixo.x == inimigo[2].quad.x && bomba.baixo.y == inimigo[2].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[2].quad);
+                  inimigo[2].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+          }
+	
+	      if(bomba.esquerdaAtiva ==1)
+		  {
+              SDL_BlitSurface(explosaoBomba, NULL, tela, &bomba.esquerda);//explosaoLeft
+              if(bomba.esquerda.x == destino.x && bomba.esquerda.y == destino.y)
+		      {
+                  SDL_BlitSurface(playerMorto, NULL, tela, &destino);
+                  tempo_morte = SDL_GetTicks();
+                  morto = 1;
+              }
+              if (bomba.esquerda.x == inimigo[0].quad.x && bomba.esquerda.y == inimigo[0].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[0].quad);
+                  inimigo[0].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.esquerda.x == inimigo[1].quad.x && bomba.esquerda.y == inimigo[1].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[1].quad);
+                  inimigo[1].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.esquerda.x == inimigo[2].quad.x && bomba.esquerda.y == inimigo[2].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[2].quad);
+                  inimigo[2].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+          }
+	
+	      if(bomba.direitaAtiva ==1)
+		  {
+              SDL_BlitSurface(explosaoBomba, NULL, tela, &bomba.direita);//explosaoRight
+              if(bomba.direita.x == destino.x && bomba.direita.y == destino.y)
+		      {
+                  SDL_BlitSurface(playerMorto, NULL, tela, &destino);
+                  tempo_morte = SDL_GetTicks();
+                  morto = 1;
+              }
+              if (bomba.direita.x == inimigo[0].quad.x && bomba.direita.y == inimigo[0].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[0].quad);
+                  inimigo[0].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.direita.x == inimigo[1].quad.x && bomba.direita.y == inimigo[1].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[1].quad);
+                  inimigo[1].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+              if (bomba.direita.x == inimigo[2].quad.x && bomba.direita.y == inimigo[2].quad.y)
+              {
+                  SDL_BlitSurface(inimigomorto, NULL, tela, &inimigo[2].quad);
+                  inimigo[2].ativo = 0;
+                  pontos += 10;
+                  /*aumentaPontos = 1;
+                  aumentaPontos = 1;*/
+              }
+          }
+		  if(morto == 1)
+		  {
+			if (SDL_GetTicks() - bombaExplosao > 1500 || SDL_GetTicks() - tempo_morte > 1500)
+            {
+                 //SDL_BlitSurface(player, NULL, tela, &destino);
+              
+				 sairJogo = 1;
+				 sairFimLoose = 0;
+				 menu_fimLoose(evento);
+			}
+		  }
+		  
+		  //Jogador vivo -> blita na tela
+          if (morto != 1)
+         {
+              SDL_BlitSurface(player, NULL, tela, &destino);
+              if (mapa[linha_atual][coluna_atual] == SAIDA)
+              { 
+					sairJogo = 1;
+					sairFimWin = 0;
+					menu_fimWin(evento);
+			  }
+          }
+		  
+          /*if (morto == 1)
+          {
+              destino.x = inicio.x;
+              destino.y = inicio.y;
+              
+              vidas = vidas - 1;
+          
+              if (SDL_GetTicks() - bombaExplosao > 1500 || SDL_GetTicks() - tempo_morte > 1500)
+              {
+                  SDL_BlitSurface(player, NULL, tela, &destino);
+                  morto = 0;
+              }
+              
+          }*/
+          
+          
+          
+          //Inimigo vivo -> blita na tela
+          if(inimigo[0].ativo == 1)
+          SDL_BlitSurface(imagemInimigo1, NULL, tela, &inimigo[0].quad);
+          
+          if(inimigo[1].ativo == 1)
+          SDL_BlitSurface(imagemInimigo2, NULL, tela, &inimigo[1].quad);
+          
+          if(inimigo[2].ativo == 1)
+          SDL_BlitSurface(imagemInimigo3, NULL, tela, &inimigo[2].quad);
+          
+//AQUI!!
+/*
+          //Segundos que se passaram desde o inicio do jogo
+    	  segundosdejogo = SDL_GetTicks() / 1000;
+
+          //Segundos restantes para o jogo acabar. O 180 representa o tempo inicial da contagem regressiva
+          segundosrestantes = 180 - segundosdejogo;
+
+          //a linha comentada a baixo define o tempo que passou. Tirar o comentario dela e comentar a linha que define o tempo restante para substituir o que aparecerá na tela. Se quiser mostrar em milisengundos, mude o 'segundosdejogo' por 'SDL_GetTicks()'
+          //sprintf(mens_cronometro, "%.3d", segundosdejogo);
+
+          //a linha a baixo define o tempo restante
+    	  sprintf(mens_cronometro, "%.3d", segundosrestantes);
+
+          if(segundosrestantes == 0){
+               fim = 1;
+          }
+
+		  cronometro = TTF_RenderText_Solid( font, mens_cronometro, textColor );
+          cordenada_cronometro.x = 150;
+          cordenada_cronometro.y = 10;
+          SDL_BlitSurface( cronometro, NULL, tela, &cordenada_cronometro);*/ //até aqui
+          
+          //SDL_BlitSurface(imagemInimigo1, &inimigos[0], tela, &destinoInimigo[0]);
+			
+      	  //menu_recordes(evento); //<------------------------------------------------------------- Mudei aqui também
+      	  //menu_manual(evento);
+      	  //menu_creditos(evento);
+      	  //menu_novorecorde(evento);
+      	  //menu_fimWin(evento);
+      	  //menu_fimLoose(evento);
+      	  
+      	  pontuacao[0] = pontos;
+      	  escreveTexto(fonte, 0, 0, corTexto, "%d", pontuacao);
+      	  
+          SDL_UpdateRect(tela,0,0,0,0); /* Atualiza a tela inteira */
+          //controla_fps(tempo_inicial); // controla o FPS           AQUI!!!
+		  tempoDeMovimentoInimigo++; // Para a contagem do tempo em que o inimigo vai se mover
+		  
+		  
+		  
+		  //if (vidas == 0)
+		  //fim = 1;
+	}
+	menu_principal(evento);
+
+    /* Finalizando o SDL */
+    SDL_Quit();
+    return 0;
+}
